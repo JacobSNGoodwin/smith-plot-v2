@@ -1,5 +1,5 @@
 {
-  "name": "example-basic",
+  "name": "smith-plot-v2",
   "type": "module",
   "scripts": {
     "dev": "vinxi dev",
@@ -19,6 +19,7 @@
     "node": ">=18"
   },
   "devDependencies": {
+    "@biomejs/biome": "1.7.0",
     "@unocss/reset": "^0.59.3",
     "unocss": "^0.59.3"
   }
