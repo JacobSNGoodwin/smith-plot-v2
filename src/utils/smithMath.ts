@@ -1,4 +1,11 @@
-import { subtract, add, divide, type Complex, multiply } from './complex';
+import {
+	subtract,
+	add,
+	divide,
+	type Complex,
+	multiply,
+	angle,
+} from './complex';
 /*
  * First we include functions for computing arcs on Smith chart for going between
  * gamma and normalized load impedance
@@ -32,35 +39,52 @@ const gammaToZLoad = (gamma: Complex, z0: number) => {
  * x represents real gamma, y represents imaginary gamma
  * These numbers will feed into the d3.pth.arcTo path generator funtion
  */
-// const getRealCircle = (rL: number, xL1: number, xL2: number) => {
-// const zL1: Complex = { real: rL, imag: xL1 }; // normzlied impedance of arc start
-// // Don't need to compute conjugate because of symmetry
-// const zL2: Complex = { real: rL, imag: xL2 };
-// const gamma1 = zLoadNormalizedToGamma(zL1);
-// const gamma2 = zLoadNormalizedToGamma(zL2);
-
 export const getRealCircle = (rL: number) => {
 	const radius = 1 / (1 + rL);
 	const cx = rL / (1 + rL);
 	const cy = 0;
 
-	// get angles from centers to gamma crossings
-	// let angle1 = math.subtract(gamma1, math.complex(cx, cy)).toPolar().phi;
-	// let angle2 = math.subtract(gamma2, math.complex(cx, cy)).toPolar().phi;
-
-	// Keep angles positive for simplicity
-	// if (angle1 < 0) {
-	// 	angle1 = angle1 + 2 * Math.PI;
-	// }
-	// if (angle2 < 0) {
-	// 	angle2 = angle2 + 2 * Math.PI;
-	// }
-
 	return {
 		radius,
 		cx,
 		cy,
-		// angle1,
-		// angle2,
+	};
+};
+
+/*
+ * Get constance reactace arc from real value, rL1 to real value rL2
+ */
+export const getImagArc = (xL: number, rL1: number, rL2: number) => {
+	const zL1: Complex = { real: rL1, imag: xL };
+	const zL2: Complex = { real: rL2, imag: xL };
+
+	const gamma1 = zLoadNormalizedToGamma(zL1);
+	const gamma2 = zLoadNormalizedToGamma(zL2);
+
+	const radius = Math.abs(1 / xL);
+	const cx = 1;
+	const cy = 1 / xL;
+
+	// get angles from centers to gamma crossings
+	let angle1 = angle(subtract(gamma1, { real: cx, imag: cy }));
+	let angle2 = angle(subtract(gamma2, { real: cx, imag: cy }));
+
+	// Keep angles positive for simplicity
+	if (angle1 < 0) {
+		angle1 = angle1 + 2 * Math.PI;
+	}
+	if (angle2 < 0) {
+		angle2 = angle2 + 2 * Math.PI;
+	}
+
+	console.log('gammas', { gamma1, gamma2 });
+	return {
+		radius,
+		cx,
+		cy,
+		angle1,
+		angle2,
+		gamma1,
+		gamma2,
 	};
 };

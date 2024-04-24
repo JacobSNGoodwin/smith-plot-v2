@@ -6,24 +6,24 @@ import {
 	onMount,
 	createEffect,
 } from 'solid-js';
-import { getRealCircle } from '~/utils/smithMath';
+import { getImagArc, getRealCircle } from '~/utils/smithMath';
 
 const PLOT_PADDING = 20;
 
 type SmithChartProps = {
-	realLineValues?: number[];
+	realCircleValues?: number[];
+	imagArcValues?: number[];
 };
 
 const SmithChart: Component<SmithChartProps> = ({
-	realLineValues = [0, 0.2, 0.5, 1, 2, 5, 10],
+	realCircleValues = [0, 0.2, 0.5, 1, 2, 5, 10],
+	imagArcValues = [-10, -5, -1, -0.5, -0.2, 0, 0.2, 0.5, 1, 2, 5, 10],
 }) => {
 	let pixiAppEl: HTMLDivElement | undefined;
 
 	// Do these need to be in signals?
-
 	const [pixiApp] = createSignal<Application>(new Application());
 	const [plotContainer] = createSignal<Container>(new Container());
-	const [smithChartGraphics] = createSignal<Graphics>(new Graphics());
 
 	const [plotDimensions, setPlotDimensions] = createSignal<{
 		xMin: number;
@@ -36,6 +36,7 @@ const SmithChart: Component<SmithChartProps> = ({
 		getX: (x: number) => number;
 		getY: (y: number) => number;
 		getR: (rUnscaled: number) => number;
+		getAngle: (angle: number) => number;
 	}>({
 		xMin: 0,
 		xMax: 0,
@@ -47,6 +48,7 @@ const SmithChart: Component<SmithChartProps> = ({
 		getX: () => 0,
 		getY: () => 0,
 		getR: () => 0,
+		getAngle: () => 0,
 	});
 
 	const computePlotDimensions = (width: number, height: number) => {
@@ -74,6 +76,13 @@ const SmithChart: Component<SmithChartProps> = ({
 			return rUnscaled * r;
 		};
 
+		const getAngle = (angle: number) => {
+			const x = Math.cos(angle);
+			const y = -Math.sin(angle);
+
+			return Math.atan2(y, x);
+		};
+
 		return {
 			xMin,
 			xMax,
@@ -85,10 +94,17 @@ const SmithChart: Component<SmithChartProps> = ({
 			getX,
 			getY,
 			getR,
+			getAngle,
 		};
 	};
 
 	const handleWindowReize = () => {
+		pixiApp().resize();
+		plotContainer().removeChildren(); // TODO - is there a more efficient route?
+		// console.debug('in handleWindowReize', {
+		// 	width: pixiApp().canvas.width,
+		// 	height: pixiApp().canvas.height,
+		// });
 		setPlotDimensions(
 			computePlotDimensions(pixiApp().canvas.width, pixiApp().canvas.height),
 		);
@@ -97,17 +113,58 @@ const SmithChart: Component<SmithChartProps> = ({
 	// where the magic happens of redrawing on plotDimensions change
 	createEffect(() => {
 		// do we need to clear graphics?
-		smithChartGraphics().clear();
 
-		realLineValues.forEach((realValue) => {
+		const { getX, getY, getR, getAngle } = plotDimensions();
+
+		realCircleValues.forEach((realValue) => {
 			const { radius, cx, cy } = getRealCircle(realValue);
-			const centerX = plotDimensions().getX(cx);
-			const centerY = plotDimensions().getY(cy);
-			const circleRadius = plotDimensions().getR(radius);
-			smithChartGraphics().circle(centerX, centerY, circleRadius);
+			const centerX = getX(cx);
+			const centerY = getY(cy);
+			const circleRadius = getR(radius);
+			plotContainer().addChild(
+				new Graphics()
+					.circle(centerX, centerY, circleRadius)
+					.stroke({ color: 0x000000, width: 3 }), // stroke could be stored in a GraphicsContext appled to constructor
+			);
 		});
 
-		smithChartGraphics().stroke({ color: 0x000000, width: 4 });
+		imagArcValues.map((imagValue) => {
+			if (imagValue === 0) {
+				const line = new Graphics()
+					.moveTo(getX(-1), getY(0))
+					.lineTo(getX(1), getY(0));
+				plotContainer().addChild(line);
+			} else {
+				const { cx, cy, radius, angle1, angle2 } = getImagArc(
+					imagValue,
+					0,
+					1e6,
+				);
+				const anticlockWise = imagValue > 0; // trying to be more European
+
+				console.debug('arcs', {
+					cx,
+					cy,
+					radius,
+					angle1,
+					angle2,
+					anticlockWise,
+				});
+
+				const imagArc = new Graphics()
+					.arc(
+						getX(cx),
+						getY(cy),
+						getR(radius),
+						getAngle(angle1),
+						getAngle(angle2),
+						anticlockWise,
+					)
+					.stroke({ color: 0x000000, width: 3 });
+
+				plotContainer().addChild(imagArc);
+			}
+		});
 	});
 
 	onMount(async () => {
@@ -125,8 +182,6 @@ const SmithChart: Component<SmithChartProps> = ({
 		setPlotDimensions(
 			computePlotDimensions(pixiApp().canvas.width, pixiApp().canvas.height),
 		);
-
-		plotContainer().addChild(smithChartGraphics());
 
 		pixiApp().stage.addChild(plotContainer());
 	});
